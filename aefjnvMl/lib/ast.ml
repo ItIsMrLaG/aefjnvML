@@ -10,17 +10,37 @@ type rec_flag =
 [@@deriving eq, show { with_path = false }]
 
 
+type unary_op = (* TODO: remove *)
+  | Minus (** [-]*)
+  | Not (** [not]*)
+[@@deriving show { with_path = false }]
+
+type bin_op = (* TODO: remove *)
+  | Asterisk (** [*] *)
+  | Divider (** [\ ]*)
+  | Plus (** [+] *)
+  | Sub (** [-] *)
+  | Eq (** [=] *)
+  | Neq (** [!=]*)
+  | Lt (** [<] *)
+  | Ltq (** [<=]*)
+  | Gt (** [>] *)
+  | Gtq (** [>=]*)
+  | And (** [&&]*)
+  | Or (** [||]*)
+[@@deriving show { with_path = false }]
+
 type const =
   | Const_int of int (** Integers constants such as [52] *)
   | Const_bool of bool (** Boolean constant: [true], [false]*)
   | Const_nil (** Represents empty list [[]] *)
 [@@deriving show { with_path = false }]
 
-type core_type = 
+type core_type =
   | Ptyp_int
   | Ptyp_bool
   | Ptyp_var of ident
-  | Ptyp_tuple of core_type list
+  | Ptyp_tuple of core_type list (** Invariant : [n >= 2] *)
   | Ptyp_arrow of core_type * core_type
 [@@deriving show { with_path = false }]
 
@@ -48,7 +68,7 @@ type expression =
   (** [match E0 with P1 -> E1 | .. | Pn -> En] *)
   | Exp_ifthenelse of expression * expression * expression (** [if E1 then E2 else E3] *)
   | Exp_apply of expression * expression (** [E0 E1]
-  Invariant: n > 1 *)
+                                             Invariant: n > 1 *)
   | Exp_list of expression * expression
   (** The expression such as [E1::E2]
       This also represents lists [E1; ... En] via [E]*)
