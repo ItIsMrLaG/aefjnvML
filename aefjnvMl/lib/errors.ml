@@ -2,15 +2,9 @@
 
 (** SPDX-License-Identifier: LGPL-3.0-or-later *)
 
-(* open Typedtree
-
 type parse_error = Syntax_error of string
 
-type object_field =
-  | Method
-  | Variable
-
-type infer_error =
+(* type infer_error =
   | Occurs_check of int * ty
   | Unbound_variable of string
   | Unification_failed of ty * ty
@@ -19,21 +13,21 @@ type infer_error =
   | Multiple_definition of object_field * string
   | Undefined_method of ty * string
   | Not_object of ty
-  | Cannot_match_self
+  | Cannot_match_self *)
 
-type interpreter_error =
+(* type interpreter_error =
   | Division_by_zero
   | Match_failure
   | Invalid_compare_arg of string
   | Ill_right_side_rec of string
   | Ill_typed
-  | Unbound_var of string
+  | Unbound_var of string *)
 
 type error =
   | Parser of parse_error
-  | Infer of infer_error
-  | Interpreter of interpreter_error
-
+  (* | Infer of infer_error
+  | Interpreter of interpreter_error *)
+(* 
 let occurs_check (b, t) = Infer (Occurs_check (b, t))
 let unbound_variable v = Infer (Unbound_variable v)
 let unification_failed (t1, t2) = Infer (Unification_failed (t1, t2))

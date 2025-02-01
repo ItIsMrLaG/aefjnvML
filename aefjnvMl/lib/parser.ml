@@ -9,6 +9,25 @@ let id s = s
 
 (*===================== const =====================*)
 
+(* | "*" | "/" | "+" | "-" | "<=" | "<" | ">" | ">=" | "=" | "!=" | "&&" | "||" *)
+
+let op_mul = "*"
+let op_div = "/"
+let op_plus = "+"
+let op_minus = "-"
+let op_less_eq = "<="
+let op_more_eq = ">="
+let op_less = "<"
+let op_more = ">"
+let op_eq = "="
+let op_not_eq = "!="
+let op_and = "&&"
+let op_or = "||"
+let un_op_minus = "-"
+let un_op_not = "not"
+
+(*===================== const =====================*)
+
 let cint n = Const_int n
 let cbool b = Const_bool b
 let cnil = Const_nil
@@ -145,9 +164,26 @@ let check_ident i =
 let ident =
   ptoken peek_char
   >>= (function
-         | Some x when Char.equal x '_' || is_lower x -> return x
-         | _ -> fail "not an identifier")
+   | Some x when Char.equal x '_' || is_lower x -> return x
+   | _ -> fail "not an identifier")
   >>= fun _ -> take_while is_ident >>= fun s -> check_ident s
+;;
+
+let infix_op =
+  choice
+    [ token op_mul
+    ; token op_div
+    ; token op_plus
+    ; token op_minus
+    ; token op_less_eq
+    ; token op_less
+    ; token op_more
+    ; token op_more_eq
+    ; token op_eq
+    ; token op_not_eq
+    ; token op_and
+    ; token op_or
+    ]
 ;;
 
 (*===================== Core types =====================*)
@@ -169,12 +205,21 @@ let p_core_type =
     let p_type =
       choice
         [ parens core_type
+        ; p_tvar
         ; p_tint
         ; p_tbool
-        ; p_tvar
         ; p_ttuple core_type
         ; p_tarrow core_type
         ]
+        (* TODO: problem with left recursion *)
+        (* [ parens core_type
+           ; p_tarrow core_type
+           ; p_ttuple core_type
+           ; p_tint
+           ; p_tbool
+           ; p_tvar
+           ] 
+        *)
     in
     p_type)
 ;;
@@ -182,7 +227,7 @@ let p_core_type =
 (*===================== Patterns =====================*)
 
 let p_const = const >>| fun p -> pconst p
-let p_var = ident >>| pvar
+let p_var = (ident <|> parens infix_op) >>| pvar
 let p_cons = token "::" *> return pcons
 let p_any = token "_" *> skip_whitespace *> return pany
 let fold_plist = List.fold_right ~f:(fun p1 p2 -> pcons p1 p2) ~init:pnil
@@ -208,7 +253,7 @@ let pattern =
 (*===================== Expressions =====================*)
 
 let e_const = const >>| fun c -> econst c
-let e_val = ident >>| eval
+let e_val = (ident <|> parens infix_op) >>| eval
 let e_cons = token "::" *> return econs
 
 let e_list expr =
@@ -254,7 +299,6 @@ let lift5 f a b c d e =
 let e_decl pexpr =
   let pars_args = skip_whitespace *> many pattern in
   let pars_d_rec = token "rec" *> return Recursive <|> return Nonrecursive in
-  (* TODO: parse overloading bin ops *)
   let pars_decl =
     token "let" *> pars_d_rec
     >>= fun rflag ->
@@ -304,12 +348,12 @@ let bin_op chain1 e ops = chain1 e (ops >>| fun o l r -> ebinop o l r)
 let lbo = bin_op chainl1
 let rbo = bin_op chainr1
 let op l = choice (List.map ~f:(fun o -> token o >>| eval) l)
-let mul_div = op [ "*"; "/" ]
-let add_sub = op [ "+"; "-" ]
-let cmp = op [ "<="; "<"; ">="; ">"; "="; "!=" ]
-let andop = op [ "&&" ]
-let orop = op [ "||" ]
-let neg = op [ "not"; "-" ]
+let mul_div = op [ op_mul; op_div ]
+let add_sub = op [ op_plus; op_minus ]
+let cmp = op [ op_less_eq; op_less; op_more_eq; op_more; op_eq; op_not_eq ]
+let andop = op [ op_and ]
+let orop = op [ op_or ]
+let neg = op [ un_op_not; un_op_minus ]
 
 let expr =
   fix (fun pexpr ->
@@ -327,7 +371,25 @@ let expr =
 
 let del = (dsmcln <|> skip_whitespace) *> skip_whitespace
 let decl = ptoken (e_decl expr)
-
 let str_item = expr >>| streval <* dsmcln <|> (decl >>| strval)
 let program = del *> many1 (str_item <* del)
 
+let parse_syntax_err msg = Errors.Parser (Syntax_error msg)
+
+let parse s =
+  match parse_string ~consume:All program s with
+  | Ok v -> Ok v
+  | Error _ -> Error (parse_syntax_err "Syntax error")
+;;
+
+let parse_prefix s =
+  match parse_string ~consume:Prefix program s with
+  | Ok v -> Ok v
+  | Error _ -> Error (parse_syntax_err "Syntax error")
+;;
+
+let parse_prefix_with p s =
+  match parse_string ~consume:Prefix p s with
+  | Ok v -> Ok v
+  | Error _ -> Error (parse_syntax_err "Syntax error")
+;;
