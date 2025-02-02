@@ -133,9 +133,7 @@ let%expect_test _ =
 (* new functionality *)
 
 let%expect_test _ =
-  let () =
-    parse_test "let (+) (a : bool) (b : int) c: int = funct (10 - b)"
-  in
+  let () = parse_test "let (+) (a : bool) (b : int) c: int = funct (10 - b)" in
   [%expect
     {|
     [(Str_value
@@ -158,4 +156,3 @@ let%expect_test _ =
           })
       ] |}]
 ;;
-

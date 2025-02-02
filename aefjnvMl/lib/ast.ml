@@ -10,7 +10,7 @@ type rec_flag =
 [@@deriving eq, show { with_path = false }]
 
 type unary_op =
-  (* TODO: remove *)
+  (* TODO: remove minus *)
   | Minus (** [-]*)
   | Not (** [not]*)
 [@@deriving show { with_path = false }]
@@ -24,8 +24,9 @@ type const =
 type core_type =
   | Ptyp_int
   | Ptyp_bool
+  | Ptyp_unit
   | Ptyp_var of ident
-  (* TODO: add list type *)
+  | Ptyp_list of core_type
   | Ptyp_tuple of core_type list (** Invariant : [n >= 2] *)
   | Ptyp_arrow of core_type * core_type
 [@@deriving show { with_path = false }]
