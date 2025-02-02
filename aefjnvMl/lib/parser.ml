@@ -281,7 +281,7 @@ let e_fun p_expr =
 
 let e_decl pexpr =
   let pars_d_rec = token "rec" *> return Recursive <|> return Nonrecursive in
-  let pars_main_p = ptoken pattern <|> (parens infix_op >>| pvar) in
+  let pars_main_p = choice[ptoken pattern; token "()" >>| pvar ;parens infix_op >>| pvar] in
   let pars_args = skip_whitespace *> many pattern in
   let pars_decl =
     token "let" *> pars_d_rec
