@@ -20,6 +20,7 @@ let op_more_eq = ">="
 let op_less = "<"
 let op_more = ">"
 let op_eq = "="
+let op_2eq = "=="
 let op_not_eq = "!="
 let op_and = "&&"
 let op_or = "||"
@@ -31,7 +32,7 @@ let un_op_not = "not"
 let cint n = Const_int n
 let cbool b = Const_bool b
 let cnil = Const_nil
-
+let cunit = Const_unit
 (*===================== core_type =====================*)
 
 let ptint = Ptyp_int
@@ -54,6 +55,7 @@ let pnil = pconst cnil
 
 (*===================== expression =====================*)
 
+let etype e tp = Exp_type (e, tp)
 let econst c = Exp_constant c
 let eval c = Exp_ident c
 let eapp f a = Exp_apply (f, a)
@@ -152,7 +154,10 @@ let c_bool =
 ;;
 
 let c_nil = token "[]" *> return cnil
-let const = choice [ c_int; c_bool; c_nil ]
+
+let c_unit = token "()" *> return cunit
+
+let const = choice [ c_int; c_bool; c_nil; c_unit ]
 
 (*===================== Identifiers =====================*)
 
@@ -183,6 +188,7 @@ let infix_op =
     ; token op_more
     ; token op_more_eq
     ; token op_eq
+    ; token op_2eq
     ; token op_not_eq
     ; token op_and
     ; token op_or
@@ -220,22 +226,19 @@ let p_cons = token "::" *> return pcons
 let p_any = token "_" *> skip_whitespace *> return pany
 let fold_plist = List.fold_right ~f:(fun p1 p2 -> pcons p1 p2) ~init:pnil
 
-let p_list =
-  let item = p_const <|> p_var in
-  sbrcts @@ sep_by (token ";") item >>| fold_plist
-;;
-
 let tuple ident f = lift2 (fun h tl -> f @@ (h :: tl)) ident (many1 (token "," *> ident))
 let p_tuple pat = parens (tuple pat ptuple)
 
+let p_type_annotation = token ":" *> p_core_type
+
 let pattern =
   fix (fun pattern ->
-    let term = choice [ parens pattern; p_const; p_any; p_var; p_tuple pattern ] in
-    let cons = parens @@ chainr1 term p_cons in
+    let term = choice [ parens pattern; p_const; p_var; p_any; p_tuple pattern ] in
+    let cons = chainr1 term p_cons in
     let with_tp =
-      parens @@ lift3 (fun p _ tp -> pconstraint p tp) pattern (token ":") p_core_type
+      parens @@ lift2 (fun p tp -> pconstraint p tp) pattern p_type_annotation
     in
-    with_tp <|> cons <|> term)
+    cons <|> term <|> with_tp)
 ;;
 
 (*===================== Expressions =====================*)
@@ -257,7 +260,7 @@ let e_list expr =
 let e_tuple expr = tuple expr etuple
 let e_app expr = chainl1 expr (return eapp)
 let e_ite b t e = lift3 eite (token "if" *> b) (token "then" *> t) (token "else" *> e)
-let pars_fun_type_opt = token ":" *> p_core_type >>| (fun tp -> Some tp) <|> return None
+let p_type_annotation_opt = p_type_annotation >>| (fun tp -> Some tp) <|> return None
 
 let e_fun p_expr =
   let pars_args = many1 pattern in
@@ -266,7 +269,7 @@ let e_fun p_expr =
     *> lift4
          (fun args tp_opt _ expr -> args, tp_opt, expr)
          pars_args
-         pars_fun_type_opt
+         p_type_annotation_opt
          (token "->")
          p_expr
   in
@@ -281,7 +284,7 @@ let e_fun p_expr =
 
 let e_decl pexpr =
   let pars_d_rec = token "rec" *> return Recursive <|> return Nonrecursive in
-  let pars_main_p = choice[ptoken pattern; token "()" >>| pvar ;parens infix_op >>| pvar] in
+  let pars_main_p = choice[ptoken pattern; parens infix_op >>| pvar] in
   let pars_args = skip_whitespace *> many pattern in
   let pars_decl =
     token "let" *> pars_d_rec
@@ -290,7 +293,7 @@ let e_decl pexpr =
       (fun main_p args tp_opt expr -> rflag, main_p, args, tp_opt, expr)
       pars_main_p
       pars_args
-      pars_fun_type_opt
+      p_type_annotation_opt
       (token "=" *> pexpr)
   in
   let validate_main_p main_p args =
@@ -342,18 +345,19 @@ let rbo = bin_op chainr1
 let op l = choice (List.map ~f:(fun o -> token o >>| eval) l)
 let mul_div = op [ op_mul; op_div ]
 let add_sub = op [ op_plus; op_minus ]
-let cmp = op [ op_less_eq; op_less; op_more_eq; op_more; op_eq; op_not_eq ]
+let cmp = op [ op_less_eq; op_less; op_more_eq; op_more; op_eq; op_2eq; op_not_eq ]
 let andop = op [ op_and ]
 let orop = op [ op_or ]
 let neg = op [ un_op_not; un_op_minus ]
 
 let expr =
   fix (fun pexpr ->
-    let sube = choice [ parens pexpr; e_const; e_val ] in
+    let etp = parens @@ lift2 etype pexpr p_type_annotation in
+    let sube = choice [ etp; parens pexpr; e_const; e_val ] in
     let term = e_app sube in
     let term = lbo (term <|> lift2 eunop neg term) mul_div in
-    let term = lbo term add_sub in
     let term = e_list term <|> term in
+    let term = lbo term add_sub in
     let term = lbo term cmp in
     let term = rbo term andop in
     let term = rbo term orop in
@@ -363,7 +367,7 @@ let expr =
 
 let del = (dsmcln <|> skip_whitespace) *> skip_whitespace
 let decl = ptoken (e_decl expr)
-let str_item = expr >>| streval <* dsmcln <|> (decl >>| strval)
+let str_item = expr >>| streval <|> (decl >>| strval)
 let program = del *> many1 (str_item <* del)
 let parse_syntax_err msg = Errors.Parser (Syntax_error msg)
 

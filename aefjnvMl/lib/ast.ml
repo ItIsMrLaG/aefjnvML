@@ -19,6 +19,7 @@ type const =
   | Const_int of int (** Integers constants such as [52] *)
   | Const_bool of bool (** Boolean constant: [true], [false]*)
   | Const_nil (** Represents empty list [[]] *)
+  | Const_unit
 [@@deriving show { with_path = false }]
 
 type core_type =
@@ -43,6 +44,7 @@ type pattern =
 [@@deriving show { with_path = false }]
 
 type expression =
+  | Exp_type of expression * core_type
   | Exp_constant of const (** Expressions constant such as [1], [true] *)
   | Exp_ident of ident (** Identifiers such as [x] *)
   | Exp_tuple of expression list
