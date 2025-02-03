@@ -159,13 +159,16 @@ let%expect_test _ =
 (* Kakadu tests *)
 
 let%expect_test _ =
-  let () = parse_test {|
+  let () =
+    parse_test
+      {|
 let rec fac n = if n<=1 then 1 else n * fac (n-1)
 
 let main =
   let () = print_int (fac 4) in
   0
-  |} in
+  |}
+  in
   [%expect
     {|
     [(Str_value
@@ -201,7 +204,9 @@ let main =
 ;;
 
 let%expect_test _ =
-  let () = parse_test {|
+  let () =
+    parse_test
+      {|
 let rec fib_acc a b n =
   if n=1 then b
   else
@@ -218,7 +223,8 @@ let main =
   let () = print_int (fib_acc 0 1 4) in
   let () = print_int (fib 4) in
   0
-|} in
+|}
+  in
   [%expect
     {|
       [(Str_value
@@ -317,7 +323,9 @@ let main =
 ;;
 
 let%expect_test _ =
-  let () = parse_test {|
+  let () =
+    parse_test
+      {|
 let wrap f = if 1 = 1 then f else f
 
 let test3 a b c =
@@ -336,7 +344,8 @@ let main =
   let () = print_int rez in
   let temp2 = wrap test3 1 10 100 in
   0
-|} in
+|}
+  in
   [%expect
     {|
       [(Str_value
@@ -521,9 +530,10 @@ let main =
         ] |}]
 ;;
 
-
 let%expect_test _ =
-  let () = parse_test {|
+  let () =
+    parse_test
+      {|
 let rec fix f x = f (fix f) x
 
 let fac self n = if n<=1 then 1 else n * self (n-1)
@@ -531,7 +541,8 @@ let fac self n = if n<=1 then 1 else n * self (n-1)
 let main =
   let () = print_int (fix fac 6) in
   0
-|} in
+|}
+  in
   [%expect
     {|
       [(Str_value
@@ -583,16 +594,18 @@ let main =
         ] |}]
 ;;
 
-
 let%expect_test _ =
-  let () = parse_test {|
+  let () =
+    parse_test
+      {|
 let foo b = if b then (fun foo -> foo+2) else (fun foo -> foo*10)
 
 let foo x = foo true (foo false (foo true (foo false x)))
 let main =
   let () = print_int (foo 11) in
   0
-|} in
+|}
+  in
   [%expect
     {|
       [(Str_value
@@ -649,7 +662,9 @@ let main =
 ;;
 
 let%expect_test _ =
-  let () = parse_test {|
+  let () =
+    parse_test
+      {|
 let foo a b c =
   let () = print_int a in
   let () = print_int b in
@@ -662,7 +677,8 @@ let main =
   let foo = foo 3 in
   let () = print_int foo in
   0
-|} in
+|}
+  in
   [%expect
     {|
       [(Str_value
@@ -732,7 +748,9 @@ let main =
 ;;
 
 let%expect_test _ =
-  let () = parse_test {|
+  let () =
+    parse_test
+      {|
 let foo a =
   let () = print_int a in fun b ->
   let () = print_int b in fun c ->
@@ -741,7 +759,8 @@ let foo a =
 let main =
   let () = foo 4 8 9 in
   0
-|} in
+|}
+  in
   [%expect
     {|
       [(Str_value
@@ -783,7 +802,9 @@ let main =
 ;;
 
 let%expect_test _ =
-  let () = parse_test {|
+  let () =
+    parse_test
+      {|
 let _start () () a () b _c () d __ =
    let () = print_int (a+b) in
    let () = print_int __ in
@@ -791,7 +812,8 @@ let _start () () a () b _c () d __ =
 
 let main =
    print_int (_start (print_int 1) (print_int 2) 3 (print_int 4) 100 1000 (print_int (-1)) 10000 (-555555))
-|} in
+|}
+  in
   [%expect
     {|
       [(Str_value
@@ -888,13 +910,16 @@ let main =
 ;;
 
 let%expect_test _ =
-  let () = parse_test {|
+  let () =
+    parse_test
+      {|
 let addi = fun f g x -> (f x (g x: bool) : int)
 
 let main =
   let () = print_int (addi (fun x b -> if b then x+1 else x*2) (fun _start -> _start/2 = 0) 4) in
   0
-|} in
+|}
+  in
   [%expect
     {|
       [(Str_value
@@ -959,11 +984,14 @@ let main =
 ;;
 
 let%expect_test _ =
-  let () = parse_test {|
+  let () =
+    parse_test
+      {|
 let temp =
   let f = fun x -> x in
   (f 1, f true)
-|} in
+|}
+  in
   [%expect
     {|
       [(Str_value
@@ -982,7 +1010,9 @@ let temp =
 ;;
 
 let%expect_test _ =
-  let () = parse_test {|
+  let () =
+    parse_test
+      {|
 let rec fix f x = f (fix f) x
 let map f p = let (a,b) = p in (f a, f b)
 let fixpoly l =
@@ -997,7 +1027,8 @@ let tie = fixpoly (feven, fodd)
 
 let rec meven n = if n = 0 then 1 else modd (n - 1)
 
-|} in
+|}
+  in
   [%expect
     {|
       [(Str_value
@@ -1129,7 +1160,9 @@ let rec meven n = if n = 0 then 1 else modd (n - 1)
 ;;
 
 let%expect_test _ =
-  let () = parse_test {|
+  let () =
+    parse_test
+      {|
 let rec length xs =
   match xs with
   | [] -> 0
@@ -1171,7 +1204,8 @@ let main =
   let () = iter print_int ([1;2;3]) in
   let () = print_int (length (cartesian ([1;2]) ([1;2;3;4]))) in
   0
-|} in
+|}
+  in
   [%expect
     {|
       [(Str_value
@@ -1403,9 +1437,11 @@ let main =
         ] |}]
 ;;
 
-(* 
-TODO: 
+(*
+   TODO: 
 - problems with apply and lists (a ([1; 2]) | a [1; 2])
 - add mutual recursion
 - add crum tests and infrastructure
+
+* mb remove unary minus
 *)

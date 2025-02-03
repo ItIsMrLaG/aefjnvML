@@ -154,9 +154,7 @@ let c_bool =
 ;;
 
 let c_nil = token "[]" *> return cnil
-
 let c_unit = token "()" *> return cunit
-
 let const = choice [ c_int; c_bool; c_nil; c_unit ]
 
 (*===================== Identifiers =====================*)
@@ -225,10 +223,8 @@ let p_var = ident >>| pvar
 let p_cons = token "::" *> return pcons
 let p_any = token "_" *> skip_whitespace *> return pany
 let fold_plist = List.fold_right ~f:(fun p1 p2 -> pcons p1 p2) ~init:pnil
-
 let tuple ident f = lift2 (fun h tl -> f @@ (h :: tl)) ident (many1 (token "," *> ident))
 let p_tuple pat = parens (tuple pat ptuple)
-
 let p_type_annotation = token ":" *> p_core_type
 
 let pattern =
@@ -283,8 +279,12 @@ let e_fun p_expr =
 ;;
 
 let e_decl pexpr =
-  let pars_d_rec = token "rec" *> return Recursive <|> return Nonrecursive in
-  let pars_main_p = choice[ptoken pattern; parens infix_op >>| pvar] in
+  let is_rec_flag = function
+    | "rec" -> return Recursive
+    | _ -> fail "Nonrec"
+  in
+  let pars_d_rec = ident >>= is_rec_flag <|> return Nonrecursive in
+  let pars_main_p = choice [ ptoken pattern; parens infix_op >>| pvar ] in
   let pars_args = skip_whitespace *> many pattern in
   let pars_decl =
     token "let" *> pars_d_rec
@@ -390,4 +390,3 @@ let parse_prefix_with p s =
 ;;
 
 (* TODO: mutual recursion *)
-
