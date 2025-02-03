@@ -67,7 +67,8 @@ let eite b t e = Exp_ifthenelse (b, t, e)
 let elet d e = Exp_let (d, e)
 let etuple es = Exp_tuple es
 let econs a b = Exp_list (a, b)
-let edecl d_rec d_pat d_expr = { d_rec; d_pat; d_expr }
+let evalue_binding vb_pat vb_expr = { vb_pat; vb_expr }
+let edecl rec_flag bind_list = Decl (rec_flag, bind_list)
 let streval e = Str_eval e
 let strval d = Str_value d
 
@@ -104,12 +105,17 @@ let is_keyword = function
   | "not"
   | "method"
   | "unit"
+  | "and"
   | "in" -> true
   | _ -> false
 ;;
 
 let is_alpha c = is_upper c || is_lower c
 let is_ident c = is_alpha c || Char.equal '_' c
+
+let is_ident_char = function
+  | 'a' .. 'z' | 'A' .. 'Z' | '0' .. '9' | '_' | '\'' -> true
+  | _ -> false
 
 (*===================== Control characters =====================*)
 
@@ -169,10 +175,10 @@ let check_ident i =
 
 let unchecked_ident =
   ptoken peek_char
-  >>= (function
-   | Some x when Char.equal x '_' || is_lower x -> return x
-   | _ -> fail "not an identifier")
-  >>= fun _ -> take_while is_ident
+  >>= function
+  | Some x when Char.equal x '_' || is_lower x ->
+      take_while is_ident_char
+  | _ -> fail "not a valid identifier"
 ;;
 
 let ident = unchecked_ident >>= check_ident
@@ -226,12 +232,13 @@ let p_cons = token "::" *> return pcons
 let p_any = token "_" *> skip_whitespace *> return pany
 let fold_plist = List.fold_right ~f:(fun p1 p2 -> pcons p1 p2) ~init:pnil
 let tuple ident f = lift2 (fun h tl -> f @@ (h :: tl)) ident (many1 (token "," *> ident))
-let p_tuple pat = parens (tuple pat ptuple)
+let p_tuple pat = parens (tuple pat ptuple) <|> tuple pat ptuple
 let p_type_annotation = token ":" *> p_core_type
 
 let pattern =
   fix (fun pattern ->
-    let term = choice [ parens pattern; p_const; p_var; p_any; p_tuple pattern ] in
+    let term = choice [ parens pattern; p_const; p_var; p_any ] in
+    let term = p_tuple term <|> term in
     let cons = chainr1 term p_cons in
     let with_tp =
       parens @@ lift2 (fun p tp -> pconstraint p tp) pattern p_type_annotation
@@ -244,27 +251,15 @@ let pattern =
 let e_const = const >>| fun c -> econst c
 let e_val = ident <|> parens infix_op >>| eval
 let e_cons = token "::" *> return econs
-
-let e_list expr =
-  let rec create_cons = function
-    | [] -> econst cnil
-    | h :: tl -> econs h (create_cons tl)
-  in
-  let basic_list = sbrcts @@ sep_by (token ";") expr >>| create_cons in
-  let cons_list = chainr1 (expr <|> basic_list) e_cons in
-  basic_list <|> cons_list
-;;
-
-let e_list_basic expr = 
+let e_list_basic expr =
   let rec create_cons = function
     | [] -> econst cnil
     | h :: tl -> econs h (create_cons tl)
   in
   sbrcts @@ sep_by (token ";") expr >>| create_cons
+;;
 
 let e_list_cons expr = chainr1 (expr <|> e_list_basic expr) e_cons
-
-
 let e_tuple expr = tuple expr etuple
 let e_app expr = chainl1 expr (return eapp)
 let e_ite b t e = lift3 eite (token "if" *> b) (token "then" *> t) (token "else" *> e)
@@ -290,24 +285,9 @@ let e_fun p_expr =
   >>| fun (h, tl) -> List.fold_left ~init:(efun h expr) ~f:(fun acc x -> efun x acc) tl
 ;;
 
-let e_decl pexpr =
-  let is_rec_flag = function
-    | "rec" -> return Recursive
-    | _ -> fail "Nonrec"
-  in
-  let pars_d_rec = (unchecked_ident >>= is_rec_flag) <|> return Nonrecursive in
+let e_value_binding pexpr =
   let pars_main_p = choice [ ptoken pattern; parens infix_op >>| pvar ] in
   let pars_args = skip_whitespace *> many pattern in
-  let pars_decl =
-    token "let" *> pars_d_rec
-    >>= fun rflag ->
-    lift4
-      (fun main_p args tp_opt expr -> rflag, main_p, args, tp_opt, expr)
-      pars_main_p
-      pars_args
-      p_type_annotation_opt
-      (token "=" *> pexpr)
-  in
   let validate_main_p main_p args =
     match main_p, args with
     | Pat_constraint _, _ :: _ ->
@@ -323,16 +303,50 @@ let e_decl pexpr =
   in
   let collect_expr args expr =
     let f = fun acc x -> efun x acc in
-    match args with
+    match List.rev args with
     | h :: tl -> List.fold_left ~init:(efun h expr) ~f tl
     | _ -> expr
   in
-  let construct_decl (rflag, main_p, args, tp_opt, expr) =
+  let construct_value_binding (main_p, args, tp_opt, expr) =
     validate_main_p main_p args
     >>| collect_main_p tp_opt
-    >>| fun main_valid_p -> edecl rflag main_valid_p (collect_expr args expr)
+    >>| fun main_valid_p -> evalue_binding main_valid_p (collect_expr args expr)
   in
-  pars_decl >>= construct_decl
+  lift4
+    (fun main_p args tp_opt expr -> main_p, args, tp_opt, expr)
+    pars_main_p
+    pars_args
+    p_type_annotation_opt
+    (token "=" *> pexpr)
+  >>= construct_value_binding
+;;
+
+let e_decl pexpr =
+  let pars_decl =
+    let is_rec_flag = function
+      | "rec" -> return Recursive
+      | _ -> fail "Nonrec"
+    in
+    let is_and_flag = function
+      | "and" -> return true
+      | _ -> fail "Nonrec"
+    in
+    let pars_d_rec = unchecked_ident >>= is_rec_flag <|> return Nonrecursive in
+    let pars_let = token "let" in
+    let pars_secondary_vb = (unchecked_ident >>= is_and_flag) *> e_value_binding pexpr in
+    pars_let *> pars_d_rec
+    >>= fun rflag ->
+    e_value_binding pexpr
+    >>= fun first_vb ->
+    many pars_secondary_vb >>| fun secondary_vbs -> rflag, first_vb :: secondary_vbs
+  in
+  let validate_decl (rflag, vb_list) =
+    match rflag, vb_list with
+    | Nonrecursive, _ :: _ :: _ -> fail "Using 'and' available only with 'rec' flag"
+    | x -> return x
+  in
+  let construct_decl (rflag, vb_list) = return @@ edecl rflag vb_list in
+  pars_decl >>= validate_decl >>= construct_decl
 ;;
 
 let e_ptrn_matching pexpr = lift2 (fun k v -> k, v) (pattern <* token "->") pexpr
@@ -357,7 +371,7 @@ let rbo = bin_op chainr1
 let op l = choice (List.map ~f:(fun o -> token o >>| eval) l)
 let mul_div = op [ op_mul; op_div ]
 let add_sub = op [ op_plus; op_minus ]
-let cmp = op [ op_less_eq; op_less; op_more_eq; op_more; op_eq; op_2eq; op_not_eq ]
+let cmp = op [ op_less_eq; op_less; op_more_eq; op_more; op_2eq; op_eq; op_not_eq ]
 let andop = op [ op_and ]
 let orop = op [ op_or ]
 let neg = op [ un_op_not; un_op_minus ]

@@ -68,11 +68,13 @@ type expression =
 
 (** Represents:
     - [let P = E] when [d_rec] is {{!rec_flag.Nonrecursive} [Nonrecursive]}
-    - [let rec P = E] when [d_rec] is {{!rec_flag.Recursive} [Recursive]} *)
-and decl =
-  { d_rec : rec_flag
-  ; d_pat : pattern
-  ; d_expr : expression
+    - [let rec P = E] when [d_rec] is {{!rec_flag.Recursive} [Recursive]} 
+                                                          Invariant: [n >= 1] *)
+and decl = Decl of rec_flag * value_binding list
+
+and value_binding =
+  { vb_pat : pattern
+  ; vb_expr : expression
   }
 
 type structure_item =
