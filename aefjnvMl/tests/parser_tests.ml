@@ -1434,12 +1434,12 @@ let main =
                    (Exp_constant (Const_int 0))))
                 ))
              })
-        ] |}]
+        ]
+      |}]
 ;;
 
 (*
    TODO: 
-- problems with apply and lists (a ([1; 2]) | a [1; 2])
 - add mutual recursion
 - add crum tests and infrastructure
 

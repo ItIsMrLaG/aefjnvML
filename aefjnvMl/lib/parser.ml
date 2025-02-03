@@ -164,16 +164,18 @@ let check_ident i =
   then fail "keyword"
   else if String.equal "_" i
   then fail "wildcard not expected"
-  else return (id i)
+  else return i
 ;;
 
-let ident =
+let unchecked_ident =
   ptoken peek_char
   >>= (function
    | Some x when Char.equal x '_' || is_lower x -> return x
    | _ -> fail "not an identifier")
-  >>= fun _ -> take_while is_ident >>= fun s -> check_ident s
+  >>= fun _ -> take_while is_ident
 ;;
+
+let ident = unchecked_ident >>= check_ident
 
 let infix_op =
   choice
@@ -293,7 +295,7 @@ let e_decl pexpr =
     | "rec" -> return Recursive
     | _ -> fail "Nonrec"
   in
-  let pars_d_rec = (ident >>= is_rec_flag) <|> return Nonrecursive in
+  let pars_d_rec = (unchecked_ident >>= is_rec_flag) <|> return Nonrecursive in
   let pars_main_p = choice [ ptoken pattern; parens infix_op >>| pvar ] in
   let pars_args = skip_whitespace *> many pattern in
   let pars_decl =
