@@ -253,6 +253,16 @@ let e_list expr =
   basic_list <|> cons_list
 ;;
 
+let e_list_basic expr = 
+  let rec create_cons = function
+    | [] -> econst cnil
+    | h :: tl -> econs h (create_cons tl)
+  in
+  sbrcts @@ sep_by (token ";") expr >>| create_cons
+
+let e_list_cons expr = chainr1 (expr <|> e_list_basic expr) e_cons
+
+
 let e_tuple expr = tuple expr etuple
 let e_app expr = chainl1 expr (return eapp)
 let e_ite b t e = lift3 eite (token "if" *> b) (token "then" *> t) (token "else" *> e)
@@ -283,7 +293,7 @@ let e_decl pexpr =
     | "rec" -> return Recursive
     | _ -> fail "Nonrec"
   in
-  let pars_d_rec = ident >>= is_rec_flag <|> return Nonrecursive in
+  let pars_d_rec = (ident >>= is_rec_flag) <|> return Nonrecursive in
   let pars_main_p = choice [ ptoken pattern; parens infix_op >>| pvar ] in
   let pars_args = skip_whitespace *> many pattern in
   let pars_decl =
@@ -353,10 +363,11 @@ let neg = op [ un_op_not; un_op_minus ]
 let expr =
   fix (fun pexpr ->
     let etp = parens @@ lift2 etype pexpr p_type_annotation in
-    let sube = choice [ etp; parens pexpr; e_const; e_val ] in
-    let term = e_app sube in
+    let term = choice [ etp; parens pexpr; e_const; e_val ] in
+    let term = e_list_basic term <|> term in
+    let term = e_app term in
     let term = lbo (term <|> lift2 eunop neg term) mul_div in
-    let term = e_list term <|> term in
+    let term = e_list_cons term <|> term in
     let term = lbo term add_sub in
     let term = lbo term cmp in
     let term = rbo term andop in
