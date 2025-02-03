@@ -9,12 +9,6 @@ type rec_flag =
   | Recursive
 [@@deriving eq, show { with_path = false }]
 
-type unary_op =
-  (* TODO: remove minus *)
-  | Minus (** [-]*)
-  | Not (** [not]*)
-[@@deriving show { with_path = false }]
-
 type const =
   | Const_int of int (** Integers constants such as [52] *)
   | Const_bool of bool (** Boolean constant: [true], [false]*)

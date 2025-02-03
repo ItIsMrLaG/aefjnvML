@@ -25,7 +25,8 @@ let op_not_eq = "!="
 let op_and = "&&"
 let op_or = "||"
 let un_op_minus = "-"
-let un_op_not = "not"
+let un_op_not = "!"
+let un_op_prefix = "~"
 
 (*===================== const =====================*)
 
@@ -116,6 +117,7 @@ let is_ident c = is_alpha c || Char.equal '_' c
 let is_ident_char = function
   | 'a' .. 'z' | 'A' .. 'Z' | '0' .. '9' | '_' | '\'' -> true
   | _ -> false
+;;
 
 (*===================== Control characters =====================*)
 
@@ -176,8 +178,7 @@ let check_ident i =
 let unchecked_ident =
   ptoken peek_char
   >>= function
-  | Some x when Char.equal x '_' || is_lower x ->
-      take_while is_ident_char
+  | Some x when Char.equal x '_' || is_lower x -> take_while is_ident_char
   | _ -> fail "not a valid identifier"
 ;;
 
@@ -199,6 +200,10 @@ let infix_op =
     ; token op_and
     ; token op_or
     ]
+;;
+
+let un_op =
+  choice [ token (un_op_prefix ^ un_op_minus); token (un_op_prefix ^ un_op_not) ]
 ;;
 
 (*===================== Core types =====================*)
@@ -249,8 +254,9 @@ let pattern =
 (*===================== Expressions =====================*)
 
 let e_const = const >>| fun c -> econst c
-let e_val = ident <|> parens infix_op >>| eval
+let e_val = choice [ ident; parens infix_op; parens un_op ] >>| eval
 let e_cons = token "::" *> return econs
+
 let e_list_basic expr =
   let rec create_cons = function
     | [] -> econst cnil
@@ -286,7 +292,9 @@ let e_fun p_expr =
 ;;
 
 let e_value_binding pexpr =
-  let pars_main_p = choice [ ptoken pattern; parens infix_op >>| pvar ] in
+  let pars_main_p =
+    choice [ ptoken pattern; parens infix_op >>| pvar; parens un_op >>| pvar ]
+  in
   let pars_args = skip_whitespace *> many pattern in
   let validate_main_p main_p args =
     match main_p, args with
@@ -374,7 +382,13 @@ let add_sub = op [ op_plus; op_minus ]
 let cmp = op [ op_less_eq; op_less; op_more_eq; op_more; op_2eq; op_eq; op_not_eq ]
 let andop = op [ op_and ]
 let orop = op [ op_or ]
-let neg = op [ un_op_not; un_op_minus ]
+
+let unop l =
+  choice
+    (List.map ~f:(fun o -> token o >>| fun un_name -> eval (un_op_prefix ^ un_name)) l)
+;;
+
+let neg = unop [ un_op_not; un_op_minus ]
 
 let expr =
   fix (fun pexpr ->

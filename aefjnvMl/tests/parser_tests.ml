@@ -25,6 +25,46 @@ let%expect_test _ =
 ;;
 
 let%expect_test _ =
+  let () = parse_test "a != b" in
+  [%expect
+    {|
+    [(Str_eval
+        (Exp_apply ((Exp_apply ((Exp_ident "!="), (Exp_ident "a"))),
+           (Exp_ident "b"))))
+      ] |}]
+;;
+
+let%expect_test _ =
+  let () = parse_test "let (~-) a = a;;" in
+  [%expect
+    {|
+    [(Str_eval
+        (Exp_apply ((Exp_apply ((Exp_ident "!="), (Exp_ident "a"))),
+           (Exp_ident "b"))))
+      ] |}]
+;;
+
+let%expect_test _ =
+  let () = parse_test "let (~!) a = a;;" in
+  [%expect
+    {|
+    [(Str_eval
+        (Exp_apply ((Exp_apply ((Exp_ident "!="), (Exp_ident "a"))),
+           (Exp_ident "b"))))
+      ] |}]
+;;
+
+let%expect_test _ =
+  let () = parse_test "let (~!) a = (~-) a;;" in
+  [%expect
+    {|
+    [(Str_eval
+        (Exp_apply ((Exp_apply ((Exp_ident "!="), (Exp_ident "a"))),
+           (Exp_ident "b"))))
+      ] |}]
+;;
+
+let%expect_test _ =
   let () = parse_test "1 * 2 / 3;;" in
   [%expect
     {|
@@ -64,8 +104,8 @@ let%expect_test _ =
 ;;
 
 let%expect_test _ =
-  let () = parse_test {|not vbool ;;|} in
-  [%expect {| [(Str_eval (Exp_apply ((Exp_ident "not"), (Exp_ident "vbool"))))] |}]
+  let () = parse_test {|! vbool ;;|} in
+  [%expect {| [(Str_eval (Exp_apply ((Exp_ident "~!"), (Exp_ident "vbool"))))] |}]
 ;;
 
 let%expect_test _ =
@@ -89,7 +129,7 @@ let%expect_test _ =
   [%expect
     {|
       [(Str_eval
-          (Exp_list ((Exp_apply ((Exp_ident "-"), (Exp_constant (Const_int 1)))),
+          (Exp_list ((Exp_apply ((Exp_ident "~-"), (Exp_constant (Const_int 1)))),
              (Exp_list ((Exp_constant (Const_int 2)), (Exp_constant Const_nil))))))
         ] |}]
 ;;
@@ -1059,12 +1099,12 @@ let main =
                                    (Exp_constant (Const_int 100)))),
                                 (Exp_constant (Const_int 1000)))),
                              (Exp_apply ((Exp_ident "print_int"),
-                                (Exp_apply ((Exp_ident "-"),
+                                (Exp_apply ((Exp_ident "~-"),
                                    (Exp_constant (Const_int 1))))
                                 ))
                              )),
                           (Exp_constant (Const_int 10000)))),
-                       (Exp_apply ((Exp_ident "-"),
+                       (Exp_apply ((Exp_ident "~-"),
                           (Exp_constant (Const_int 555555))))
                        ))
                     ))
@@ -2020,7 +2060,8 @@ let int_of_option a = match a with x::[] -> x | [] -> 0
 let _5 = let rec f x = f 5 in f
 
 let _42 a = match a with 42 -> true | _ -> false
-|} in
+|}
+  in
   [%expect
     {|
       [(Str_value
