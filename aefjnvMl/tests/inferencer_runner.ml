@@ -14,5 +14,6 @@ let () =
   | Error err ->
     (match err with
      | Parser e -> Parser.PP.pp_error Format.std_formatter e
-     | Infer e -> Inferencer.PP.pp_error Format.std_formatter e)
+     | Infer e -> Inferencer.PP.pp_error Format.std_formatter e
+     | Alpha_converter (Illegal_state_error s) -> Format.print_string s)
 ;;
