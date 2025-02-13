@@ -1,12 +1,16 @@
 (library
  (name aefjnvMl_lib)
  (public_name aefjnvMl.Lib)
- (modules parser parser_tests inferencer)
- (libraries base angstrom ppx_deriving aefjnvMl.Common)
+ (modules
+  parser
+  parser_tests
+  inferencer
+  compiler_llvm
+  alpha_converter
+  alpha_converter_tests)
+ (libraries base angstrom ppx_deriving aefjnvMl.Common llvm str)
  (preprocess
   (pps ppx_expect ppx_deriving.show ppx_deriving.eq))
  (inline_tests)
  (instrumentation
   (backend bisect_ppx)))
-
-; TODO: remove bin ops from parser (update arch)
