@@ -19,7 +19,6 @@ type cexpr =
   | CApp of cexpr * cexpr
   | CIte of immexpr * aexpr * aexpr
   | CList of immexpr * immexpr
-  | CMatch of immexpr * (immexpr * aexpr) list
   | CImmExpr of immexpr
 
 and aexpr =
