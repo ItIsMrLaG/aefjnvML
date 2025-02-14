@@ -2,12 +2,6 @@
 
 (** SPDX-License-Identifier: LGPL-3.0-or-later *)
 
-(* open Common.Ast *)
-
-(* TODO: refactor unify *)
-
-(* RESERVED PREFIX *)
-
 module StringAlphfaconverterMonad = struct
   type ident = string
 
@@ -23,52 +17,18 @@ module StringAlphfaconverterMonad = struct
   type fresh_id = int
   type bind_space = ident Bind_Map.t
   type ban_set = Banned_Set.t
-  type reserved_re_prefs = Str.regexp list (* IMPORTANT: only prefix such as "ac_*" *)
+  type reserved_re_prefs = Str.regexp list
   type ban_rules = reserved_re_prefs * ban_set
   type name_space = ban_rules * bind_space * fresh_id
-  type 'a t = name_space -> name_space * ('a, string) Result.t
 
-  (* Monad specific *)
+  include Common.Se_monad.Base_SE_Monad
 
-  let run (at : 'a t) new_name_space = at new_name_space
-  let fail : string -> 'a t = fun e st -> st, Base.Result.fail e
-  let return : 'a -> 'a t = fun x st -> st, Base.Result.return x
-  let read : 'a t = fun st -> (return st) st
-  let save : 'st -> unit t = fun new_ctx _ -> new_ctx, Result.ok ()
-
-  let ( >>= ) : 'a 'b. 'a t -> ('a -> 'b t) -> 'b t =
-    fun a f st ->
-    let st', res = a st in
-    match res with
-    | Error x -> st', Error x
-    | Ok a -> f a st'
-  ;;
-
-  let ( let* ) x f = x >>= f
-
-  let ( >>| ) : 'a 'b. 'a t -> ('a -> 'b) -> 'b t =
-    fun a f st ->
-    let st', res = a st in
-    match res with
-    | Error e -> st', Error e
-    | Ok a' -> st', Ok (f a')
-  ;;
-
-  module RList = struct
-    let fold_left xs ~init ~f =
-      Base.List.fold_left xs ~init ~f:(fun acc x ->
-        let* acc = acc in
-        f acc x)
-    ;;
-  end
-
-  (* TODO: move with include split it: SEMonad + AConvMonad *)
+  type 'a t = (name_space, 'a, string) Common.Se_monad.Base_SE_Monad.t
 
   let current_prefix = Common.Naming.alpha_prefix
   let num_prefix id = current_prefix ^ Int.to_string id
   let create_fresh_id id = id + 1
 
-  (* TODO: split with scope and binding_scope *)
   let binding_scope : 'a t -> 'a t =
     fun f ->
     let* _, old_bindings, _ = read in
@@ -168,7 +128,7 @@ let rec aconvert_pattern = function
   | Pat_tuple tup ->
     let* tup' =
       revt
-      @@ RList.fold_left tup ~init:(return []) ~f:(fun acc pt ->
+      @@ fold_left_t tup ~init:(return []) ~f:(fun acc pt ->
         let* pt' = aconvert_pattern pt in
         return @@ (pt' :: acc))
     in
@@ -192,7 +152,7 @@ let aconvert_decl_part aconv_expr = function
        let* vb_pat' = aconvert_pattern vb_pat in
        return @@ edecl rf [ { vb_pat = vb_pat'; vb_expr = vb_expr' } ]
      | Recursive ->
-       let vbl_fold_l f = RList.fold_left vbl ~init:(return []) ~f in
+       let vbl_fold_l f = fold_left_t vbl ~init:(return []) ~f in
        let* vb_ptl' =
          revt
          @@ vbl_fold_l (fun acc { vb_pat; _ } ->
@@ -228,7 +188,7 @@ let rec aconvert_expression = function
   | Exp_tuple etup ->
     let* tup' =
       revt
-      @@ RList.fold_left etup ~init:(return []) ~f:(fun acc e ->
+      @@ fold_left_t etup ~init:(return []) ~f:(fun acc e ->
         let* e' = aconvert_expression e in
         return @@ (e' :: acc))
     in
@@ -244,7 +204,7 @@ let rec aconvert_expression = function
     let* e' = aconvert_expression e in
     let* ptNel' =
       revt
-      @@ RList.fold_left ptNel ~init:(return []) ~f:(fun acc (pt_, e_) ->
+      @@ fold_left_t ptNel ~init:(return []) ~f:(fun acc (pt_, e_) ->
         binding_scope
         @@
         let* pt'_ = aconvert_pattern pt_ in
@@ -269,7 +229,7 @@ let aconvert_structure_item = function
 
 let aconvert_program prog =
   revt
-  @@ RList.fold_left prog ~init:(return []) ~f:(fun acc sti ->
+  @@ fold_left_t prog ~init:(return []) ~f:(fun acc sti ->
     let* sti' = aconvert_structure_item sti in
     return @@ (sti' :: acc))
 ;;
