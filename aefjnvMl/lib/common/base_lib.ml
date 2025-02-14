@@ -47,6 +47,13 @@ let converte_infix = function
   | name -> name
 ;;
 
+let is_binop name =
+  converte_infix name
+  |> function
+  | name' when name' = name -> false
+  | _ -> true
+;;
+
 let std_lib_names =
   [ op_mul
   ; op_div

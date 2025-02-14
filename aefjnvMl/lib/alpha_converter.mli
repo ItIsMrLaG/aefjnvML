@@ -6,6 +6,6 @@ type core_type_flag =
   | On
   | Off
 
-val rename_ast_with_uniq :
-  Common.Ast.structure_item list ->
-  (Common.Ast.structure_item list, Common.Errors.error) result
+val rename_ast_with_uniq
+  :  Common.Ast.structure_item list
+  -> (Common.Ast.structure_item list, Common.Errors.error) result

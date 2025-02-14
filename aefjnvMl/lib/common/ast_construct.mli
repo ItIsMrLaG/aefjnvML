@@ -32,14 +32,11 @@ val etype : Ast.expression -> Ast.core_type -> Ast.expression
 val econst : Ast.const -> Ast.expression
 val eval : string -> Ast.expression
 val eapp : Ast.expression -> Ast.expression -> Ast.expression
-val ematch :
-  Ast.expression -> (Ast.pattern * Ast.expression) list -> Ast.expression
+val ematch : Ast.expression -> (Ast.pattern * Ast.expression) list -> Ast.expression
 val efun : Ast.pattern -> Ast.expression -> Ast.expression
-val ebinop :
-  Ast.expression -> Ast.expression -> Ast.expression -> Ast.expression
+val ebinop : Ast.expression -> Ast.expression -> Ast.expression -> Ast.expression
 val eunop : Ast.expression -> Ast.expression -> Ast.expression
-val eite :
-  Ast.expression -> Ast.expression -> Ast.expression -> Ast.expression
+val eite : Ast.expression -> Ast.expression -> Ast.expression -> Ast.expression
 val elet : Ast.decl -> Ast.expression -> Ast.expression
 val etuple : Ast.expression list -> Ast.expression
 val econs : Ast.expression -> Ast.expression -> Ast.expression

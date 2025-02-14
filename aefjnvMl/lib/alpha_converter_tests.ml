@@ -15,7 +15,7 @@ let alpha_test s =
     Ok ast'
   in
   match ast'_t with
-  | Ok ast' -> Format.printf "%s\n" Common.Ast.(show_program ast')
+  | Ok ast' -> Stdlib.Format.printf "%a\n" Common.Ast_pp.program_pp ast'
   | Error err ->
     (match err with
      | Parser e -> Parser.PP.pp_error Format.std_formatter e
@@ -25,225 +25,98 @@ let alpha_test s =
 
 let%expect_test "" =
   let () = alpha_test {|
-let a = 1;;
-let b = 1;;
-let c = a + b;;
+   let a = 1;;
+   let b = 1;;
+   let c = a + b;;
   |} in
-  [%expect
-    {|
-    [(Str_value
-        (Decl (Nonrecursive,
-           [{ vb_pat = (Pat_var "a"); vb_expr = (Exp_constant (Const_int 1)) }])));
-      (Str_value
-         (Decl (Nonrecursive,
-            [{ vb_pat = (Pat_var "b"); vb_expr = (Exp_constant (Const_int 1)) }]
-            )));
-      (Str_value
-         (Decl (Nonrecursive,
-            [{ vb_pat = (Pat_var "c");
-               vb_expr =
-               (Exp_apply ((Exp_apply ((Exp_ident "+"), (Exp_ident "a"))),
-                  (Exp_ident "b")))
-               }
-              ]
-            )))
-      ] |}]
-;;
-
-let%expect_test "" =
-  let () = alpha_test {|
-let a = 1;;
-let b = a;;
-let c = 
-  let a = b in
-  a
-;;
-  |} in
-  [%expect
-    {|
-    [(Str_value
-        (Decl (Nonrecursive,
-           [{ vb_pat = (Pat_var "a"); vb_expr = (Exp_constant (Const_int 1)) }])));
-      (Str_value
-         (Decl (Nonrecursive,
-            [{ vb_pat = (Pat_var "b"); vb_expr = (Exp_ident "a") }])));
-      (Str_value
-         (Decl (Nonrecursive,
-            [{ vb_pat = (Pat_var "c");
-               vb_expr =
-               (Exp_let (
-                  (Decl (Nonrecursive,
-                     [{ vb_pat = (Pat_var "ac0_a"); vb_expr = (Exp_ident "b") }]
-                     )),
-                  (Exp_ident "ac0_a")))
-               }
-              ]
-            )))
-      ] |}]
-;;
-
-let%expect_test "" =
-  let () = alpha_test {|
-let rt_a = 1
-let ll_b = rt_a
-let main = 1
-;;
-  |} in
-  [%expect
-    {|
-    [(Str_value
-        (Decl (Nonrecursive,
-           [{ vb_pat = (Pat_var "ac_rt_a");
-              vb_expr = (Exp_constant (Const_int 1)) }
-             ]
-           )));
-      (Str_value
-         (Decl (Nonrecursive,
-            [{ vb_pat = (Pat_var "ac_ll_b"); vb_expr = (Exp_ident "ac_rt_a") }])));
-      (Str_value
-         (Decl (Nonrecursive,
-            [{ vb_pat = (Pat_var "ac0_main");
-               vb_expr = (Exp_constant (Const_int 1)) }
-              ]
-            )))
-      ] |}]
-;;
-
-let%expect_test "" =
-  let () = alpha_test {|
-let rec (+) b c = c + b
-;;
-  |} in
-  [%expect
-    {|
-    [(Str_value
-        (Decl (Recursive,
-           [{ vb_pat = (Pat_var "op_plus");
-              vb_expr =
-              (Exp_function ((Pat_var "b"),
-                 (Exp_function ((Pat_var "c"),
-                    (Exp_apply (
-                       (Exp_apply ((Exp_ident "op_plus"), (Exp_ident "c"))),
-                       (Exp_ident "b")))
-                    ))
-                 ))
-              }
-             ]
-           )))
-      ] |}]
-;;
-
-let%expect_test "" =
-  let () = alpha_test {|
-let (+) b c = c + b
-let (+) b c = c + b
-;;
-  |} in
-  [%expect
-    {|
-    [(Str_value
-        (Decl (Nonrecursive,
-           [{ vb_pat = (Pat_var "op_plus");
-              vb_expr =
-              (Exp_function ((Pat_var "b"),
-                 (Exp_function ((Pat_var "c"),
-                    (Exp_apply ((Exp_apply ((Exp_ident "+"), (Exp_ident "c"))),
-                       (Exp_ident "b")))
-                    ))
-                 ))
-              }
-             ]
-           )));
-      (Str_value
-         (Decl (Nonrecursive,
-            [{ vb_pat = (Pat_var "ac2_op_plus");
-               vb_expr =
-               (Exp_function ((Pat_var "ac0_b"),
-                  (Exp_function ((Pat_var "ac1_c"),
-                     (Exp_apply (
-                        (Exp_apply ((Exp_ident "op_plus"), (Exp_ident "ac1_c"))),
-                        (Exp_ident "ac0_b")))
-                     ))
-                  ))
-               }
-              ]
-            )))
-      ] |}]
+  [%expect {|
+    let a = 1;;
+    let b = 1;;
+    let c = ((((+)) a) b);; |}]
 ;;
 
 let%expect_test "" =
   let () =
     alpha_test
       {|
-let rec even n =
-  match n with
-    | 0 -> true
-    | x -> odd (x-1)
-and odd n =
-  match n with
-    | 0 -> false
-    | x -> even (x-1);;
+   let a = 1;;
+   let b = a;;
+   let c = 
+   let a = b in
+   a
+   ;;
   |}
   in
-  [%expect
-    {|
-    [(Str_value
-        (Decl (Recursive,
-           [{ vb_pat = (Pat_var "even");
-              vb_expr =
-              (Exp_function ((Pat_var "n"),
-                 (Exp_match ((Exp_ident "n"),
-                    [((Pat_const (Const_int 0)), (Exp_constant (Const_bool true)));
-                      ((Pat_var "x"),
-                       (Exp_apply ((Exp_ident "odd"),
-                          (Exp_apply (
-                             (Exp_apply ((Exp_ident "-"), (Exp_ident "x"))),
-                             (Exp_constant (Const_int 1))))
-                          )))
-                      ]
-                    ))
-                 ))
-              };
-             { vb_pat = (Pat_var "odd");
-               vb_expr =
-               (Exp_function ((Pat_var "ac0_n"),
-                  (Exp_match ((Exp_ident "ac0_n"),
-                     [((Pat_const (Const_int 0)),
-                       (Exp_constant (Const_bool false)));
-                       ((Pat_var "ac1_x"),
-                        (Exp_apply ((Exp_ident "even"),
-                           (Exp_apply (
-                              (Exp_apply ((Exp_ident "-"), (Exp_ident "ac1_x"))),
-                              (Exp_constant (Const_int 1))))
-                           )))
-                       ]
-                     ))
-                  ))
-               }
-             ]
-           )))
-      ] |}]
+  [%expect {|
+    let a = 1;;
+    let b = a;;
+    let c = let ac0_a = b in ac0_a;; |}]
 ;;
 
 let%expect_test "" =
   let () = alpha_test {|
-let a = 10;;
-let a, b = 1, 2;;
+   let rt_a = 1
+   let ll_b = rt_a
+   let main = 1
+   ;;
+  |} in
+  [%expect {|
+    let ac_rt_a = 1;;
+    let ac_ll_b = ac_rt_a;;
+    let ac0_main = 1;; |}]
+;;
+
+let%expect_test "" =
+  let () = alpha_test {|
+   let rec (+) b c = c + b
+   ;;
+  |} in
+  [%expect {|
+    let rec op_plus = fun b -> fun c -> ((op_plus c) b);; |}]
+;;
+
+let%expect_test "" =
+  let () = alpha_test {|
+   let (+) b c = c + b
+   let (+) b c = c + b
+   ;;
   |} in
   [%expect
     {|
-    [(Str_value
-        (Decl (Nonrecursive,
-           [{ vb_pat = (Pat_var "a"); vb_expr = (Exp_constant (Const_int 10)) }]
-           )));
-      (Str_value
-         (Decl (Nonrecursive,
-            [{ vb_pat = (Pat_tuple [(Pat_var "ac0_a"); (Pat_var "b")]);
-               vb_expr =
-               (Exp_tuple
-                  [(Exp_constant (Const_int 1)); (Exp_constant (Const_int 2))])
-               }
-              ]
-            )))
-      ] |}]
+    let op_plus = fun b -> fun c -> ((((+)) c) b);;
+    let ac2_op_plus = fun ac0_b -> fun ac1_c -> ((op_plus ac1_c) ac0_b);; |}]
+;;
+
+let%expect_test "" =
+  let () =
+    alpha_test
+      {|
+   let rec even n =
+   match n with
+      | 0 -> true
+      | x -> odd (x-1)
+   and odd n =
+   match n with
+      | 0 -> false
+      | x -> even (x-1);;
+  |}
+  in
+  [%expect
+    {|
+    let rec even = fun n -> match n with
+    | 0 -> true
+    | x -> (odd ((((-)) x) 1))
+    and odd = fun ac0_n -> match ac0_n with
+    | 0 -> false
+    | ac1_x -> (even ((((-)) ac1_x) 1));; |}]
+;;
+
+let%expect_test "" =
+  let () = alpha_test {|
+   let a = 10;;
+   let a, b = 1, 2;;
+  |} in
+  [%expect {|
+    let a = 10;;
+    let (ac0_a, b) = (1, 2);; |}]
 ;;

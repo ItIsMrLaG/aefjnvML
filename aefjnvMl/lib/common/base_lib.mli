@@ -41,3 +41,4 @@ val func_print_int : string
 (* ALL *)
 val std_lib_names : string list
 val converte_infix : string -> string
+val is_binop : string -> bool

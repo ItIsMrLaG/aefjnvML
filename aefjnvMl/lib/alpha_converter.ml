@@ -125,7 +125,7 @@ module StringAlphfaconverterMonad = struct
     let* _, binds, _ = read in
     match Bind_Map.find_opt name binds with
     | Some name' -> return name'
-    | None -> fail ("Illigal state: doesn't find binded value -- " ^ name)
+    | None -> fail ("=doesn't find binded value -- " ^ name)
   ;;
 end
 
